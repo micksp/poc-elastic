@@ -5,7 +5,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
+      - xpack.security.http.ssl.enabled=false # Disable SSL for development
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
     ports:
       - "9200:9200"
@@ -19,7 +19,7 @@ services:
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydatabase
+      POSTGRES_DB: ac-next
     ports:
       - "5432:5432"
     networks:
@@ -38,23 +38,16 @@ services:
     networks:
       - esnet
 
-  pgsync:
-    image: pgsync
-    container_name: pgsync
-    environment:
-      DATABASE_URL: postgres://myuser:mypassword@postgres:5432/mydatabase
-      ELASTICSEARCH_URL: http://elasticsearch:9200
-      PG_USER: myuser
-      PG_PASSWORD: mypassword
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.12.0
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      - ./postgresql-42.7.4.jar:/usr/share/logstash/postgresql.jar
+    depends_on:
+      - elasticsearch
+      - postgres
     networks:
       - esnet
-    depends_on:
-      - postgres
-      - elasticsearch
-    volumes:
-      - ./pgsync.cnf.json:/app/pgsync.cnf.json
-    entrypoint: ["pgsync"]
-    command: ["--config", "/app/pgsync.cnf.json"]
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.9.0
@@ -73,4 +66,5 @@ networks:
     driver: bridge
 
 volumes:
-  pg_data:  # Define the named volume for PostgreSQL
+  pg_data:
+
