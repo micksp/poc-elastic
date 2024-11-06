@@ -3,6 +3,7 @@
 
 ## accounts
 pgadmin: admin@localhost:admin
+
 kibana: 
 
 ## Index bijwerken
@@ -20,6 +21,7 @@ Dat is niet echt de bedoeling voor productie. Mogelijke oplossingen:
 ```bash
 curl -XPUT "http://0.0.0.0:9200/person_index" -H 'Content-Type: application/json'
 curl -XPUT "http://0.0.0.0:9200/city_index" -H 'Content-Type: application/json'
+curl -XPUT "http://0.0.0.0:9200/person_city_index" -H 'Content-Type: application/json'
 ```
 ## index verwijderen
 ```bash
@@ -108,13 +110,23 @@ GET /person_index/_search
 GET /city_index/_search
 ```
 
-## voorbeeld: join person en city in het resultaat
+
+## voorbeeld: join index
 ```
-GET /person_index/_search
+GET /person_city_index/_search
 {
   "query": {
     "match_all": {}
-  },
+  }
+}
+```
+
+## voorbeeld: join index met facetten
+## default = top 10
+```
+GET /person_city_index/_search
+{
+  "size": 0,
   "aggs": {
     "group_by_city": {
         "terms": {
@@ -123,3 +135,57 @@ GET /person_index/_search
     }
   }
 }
+```
+
+## voorbeeld: join index met facetten, top 5
+```
+GET /person_city_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "group_by_city": {
+        "terms": {
+            "field": "city.keyword",
+            "size": 5
+        }
+    }
+  }
+}
+```
+
+## voorbeeld: alle facetten ophalen. gebruik compositie van aggregaties
+## dit pagineert 
+```
+GET /person_city_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "all_cities": {
+      "composite": {
+        "sources": [
+          { "city": { "terms": { "field": "city.keyword" } } }
+        ],
+        "size": 1000
+      }
+    }
+  }
+}
+```
+## gebruik after_key om te pagineren
+```
+GET /person_city_index/_search
+{
+  "size": 0,
+  "aggs": {
+    "all_cities": {
+      "composite": {
+        "sources": [
+          { "city": { "terms": { "field": "city.keyword" } } }
+        ],
+        "size": 1000,
+        "after": { "city": "laatst_verwerkte_city_naam" }
+      }
+    }
+  }
+}
+```
