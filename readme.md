@@ -2,7 +2,7 @@
 # Notitieblok
 
 ## accounts
-pgadmin: admin@localhost:admin
+pgadmin: admin@localhost / admin
 
 kibana: 
 
@@ -30,20 +30,19 @@ curl -XDELETE "http://0.0.0.0:9200/city_index" -H 'Content-Type: application/jso
 ```
 
 ## voorbeeld tabel
-(bijvoorbeeld in pgadmin)
+(bijvoorbeeld in pgadmin, zie model.sql)
 ```sql
-CREATE TABLE IF NOT EXISTS public.person
-(
-    id bigint NOT NULL,
-    name character varying(150) COLLATE pg_catalog."default" NOT NULL,
-    city character varying(75) COLLATE pg_catalog."default" NOT NULL,
-    CONSTRAINT mytable_pkey PRIMARY KEY (id)
-)
+CREATE TABLE city (
+    id INT PRIMARY KEY,
+    name VARCHAR(255)
+);
 
-TABLESPACE pg_default;
-
-ALTER TABLE IF EXISTS public.person
-    OWNER to myuser;
+CREATE TABLE person (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    city_id INT,
+    FOREIGN KEY (city_id) REFERENCES city(id)
+);
 ```
 
 ## voorbeeld in Kibana
@@ -138,6 +137,7 @@ GET /person_city_index/_search
 ```
 
 ## voorbeeld: join index met facetten, top 5
+## haalt de top 10 op, volgorde buckets is van groot naar klein
 ```
 GET /person_city_index/_search
 {
@@ -153,8 +153,7 @@ GET /person_city_index/_search
 }
 ```
 
-## voorbeeld: alle facetten ophalen. gebruik compositie van aggregaties
-## dit pagineert 
+## voorbeeld: alle facetten ophalen. gebruik compositie van aggregatie
 ```
 GET /person_city_index/_search
 {
@@ -165,13 +164,14 @@ GET /person_city_index/_search
         "sources": [
           { "city": { "terms": { "field": "city.keyword" } } }
         ],
-        "size": 1000
+        "size": 10
       }
     }
   }
 }
 ```
-## gebruik after_key om te pagineren
+## gebruik after_key in de eerste response om de volgende pagina op te halen
+## volgorde in buckets is niet gegarandeerd (bedoeld voor grote datasets)
 ```
 GET /person_city_index/_search
 {
@@ -182,7 +182,7 @@ GET /person_city_index/_search
         "sources": [
           { "city": { "terms": { "field": "city.keyword" } } }
         ],
-        "size": 1000,
+        "size": 10,
         "after": { "city": "laatst_verwerkte_city_naam" }
       }
     }
