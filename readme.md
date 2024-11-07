@@ -1,10 +1,68 @@
 
-# Notitieblok
+# POC ElasticSearch
 
-## accounts
-pgadmin: admin@localhost / admin
+## Setup
+```bash
+docker-compose up -d
+```
 
-kibana: 
+### accounts
+- pgadmin: admin@example.com / admin
+- kibana:
+
+### Postgres
+Open pgadmin op http://localhost:8080
+
+Maak een nieuwe server aan met de volgende gegevens:
+- naam: acnext
+- host: postgres
+- poort: 5432
+- database: postgres
+- user: myuser
+- password: mypassword
+
+open de query tool en voer de volgende sql uit:
+```sql
+CREATE TABLE city (
+  id INT PRIMARY KEY,
+  name VARCHAR(255)
+);
+
+CREATE TABLE person (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    city_id INT,
+    FOREIGN KEY (city_id) REFERENCES city(id)
+);
+```
+<img src="assets/querytool.png">
+
+vul de database met mockdata (zie mocker/data.sql)
+
+### Elasticsearch
+Open kibana op http://localhost:5601 (kies "explore on my own")
+
+Voor de connectie tot elastic via kibana heb je een enrolment-token nodig. Je krijgt dit token de eerste keer elastic opstart.
+Als je dat gemist hebt kun je een nieuwe aanmaken met het volgende commando:
+```bash
+docker exec elasticsearch /bin/bash -c "bin/elasticsearch-create-enrollment-token -s kibana"
+```  
+
+open hamburger menu -> stack management -> index management
+Creëer een index met de naam "person_index" en "city_index" en "person_city_index"
+```bash
+curl -XPUT "http://0.0.0.0:9200/person_index" -H 'Content-Type: application/json'
+curl -XPUT "http://0.0.0.0:9200/city_index" -H 'Content-Type: application/json'
+curl -XPUT "http://0.0.0.0:9200/person_city_index" -H 'Content-Type: application/json'
+```
+In kibana moeten de indexen nu verschijnen. Omdat ondertussen logstash al loopt, zouden er al records in de indexen moeten zitten (binnen 1 minuut). 
+Behalve vie kibana kun je de indexen ook opvragen via: 
+```bash
+curl -X GET "localhost:9200/_cat/indices?v"
+```
+Ze hebben status yellow in plaats van green, omdat er maar 1 node is. Voor development is dat geen probleem.
+De postgresql-xxx.jar is nodig om de jdbc driver te installeren in logstash. Dit wordt geregeld in de docker-compose.yml.
+
 
 ## Index bijwerken
 Op dit moment loopt de  index via logstash, elke minuut (gescheduled).
@@ -16,41 +74,19 @@ Dat is niet echt de bedoeling voor productie. Mogelijke oplossingen:
 - De indexer in de middleware inbouwen.
 - Een message queue gebruiken om de indexer aan te roepen. bijvoorbeeld RabbitMQ.
 
-
-## lege index aanmaken
-```bash
-curl -XPUT "http://0.0.0.0:9200/person_index" -H 'Content-Type: application/json'
-curl -XPUT "http://0.0.0.0:9200/city_index" -H 'Content-Type: application/json'
-curl -XPUT "http://0.0.0.0:9200/person_city_index" -H 'Content-Type: application/json'
-```
-## index verwijderen
+## Notities
+### index verwijderen
 ```bash
 curl -XDELETE "http://0.0.0.0:9200/person_index" -H 'Content-Type: application/json'
 curl -XDELETE "http://0.0.0.0:9200/city_index" -H 'Content-Type: application/json'
 ```
 
-## voorbeeld tabel
-(bijvoorbeeld in pgadmin, zie model.sql)
-```sql
-CREATE TABLE city (
-    id INT PRIMARY KEY,
-    name VARCHAR(255)
-);
+## Query's
+In kibana onder hamburger-menu -> management -> dev tools
 
-CREATE TABLE person (
-    id INT PRIMARY KEY,
-    name VARCHAR(255),
-    city_id INT,
-    FOREIGN KEY (city_id) REFERENCES city(id)
-);
-```
-
-## voorbeeld in Kibana
-In kibana onder management -> dev tools
-
+### Zoeken
 ```
 GET /person_index/_search
-
 GET /person_index/_count
 ```
 
